@@ -14,7 +14,7 @@ export default function Signup() {
       return alert('Please enter a valid email address');
     }
     if (password.length < 6 || password.length > 30) {
-      return alert('Password must be between 6 and 9 characters');
+      return alert('Password must be between 6 and 30 characters');
     }
 
     try {
