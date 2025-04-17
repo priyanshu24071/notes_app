@@ -1,89 +1,125 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchNotes } from '../redux/slices/notesSlice';
+import {
+  fetchNotes,
+  addNote,
+  updateNote,
+  deleteNote,
+} from '../redux/slices/notesSlice';
 import { logout } from '../redux/slices/authSlice';
-import axios from 'axios';
 
 export default function Dashboard() {
   const dispatch = useDispatch();
-  const { list: notes, loading, error } = useSelector((state) => state.notes);
+  const { list: notes, loading } = useSelector((s) => s.notes);
+
+  // form state
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [creating, setCreating] = useState(false);
+  const [editId, setEditId] = useState(null);
 
   useEffect(() => {
     dispatch(fetchNotes());
   }, [dispatch]);
 
-  const handleAddNote = async (e) => {
+  const resetForm = () => {
+    setTitle('');
+    setContent('');
+    setEditId(null);
+  };
+
+  const handleSubmit = (e) => {
     e.preventDefault();
-    if (!title || !content) {
-      alert('Please fill in both title and content.');
-      return;
+    if (!title.trim() || !content.trim()) {
+        alert('Please fill in both title and content');
+        return;
+      }
+    if (editId) {
+      dispatch(updateNote({ id: editId, data: { title, content } }));
+    } else {
+      dispatch(addNote({ title, content }));
     }
-    setCreating(true);
-    try {
-      await axios.post(
-        '/api/notes',
-        { title, content },
-        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-      );
-      setTitle('');
-      setContent('');
-      dispatch(fetchNotes());
-    } catch (err) {
-      alert('Error adding note');
-    }
-    setCreating(false);
+    resetForm();
   };
 
   return (
-    <div className="p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Your Notes</h1>
-        <button onClick={() => dispatch(logout())} className="bg-red-500 text-white px-4 py-1 rounded">
+    <div className="p-4 max-w-2xl mx-auto">
+      <div className="flex justify-between mb-6">
+        <h1 className="text-2xl font-bold">My Notes</h1>
+        <button
+          onClick={() => dispatch(logout())}
+          className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded"
+        >
           Logout
         </button>
       </div>
 
-      {/* Note Addition Form */}
-      <form onSubmit={handleAddNote} className="mb-6">
-        <div className="mb-2">
-          <input
-            type="text"
-            placeholder="Note Title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="border p-2 w-full rounded"
-          />
+      {/* Add / Edit form */}
+      <form onSubmit={handleSubmit} className="space-y-2 mb-8">
+        <input
+          className="border rounded w-full p-2"
+          placeholder="Title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+        <textarea
+          className="border rounded w-full p-2"
+          rows="3"
+          placeholder="Content"
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+        />
+        <div className="space-x-2">
+          <button
+            type="submit"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1 rounded"
+          >
+            {editId ? 'Save' : 'Add'}
+          </button>
+          {editId && (
+            <button
+              type="button"
+              onClick={resetForm}
+              className="text-sm underline"
+            >
+              cancel
+            </button>
+          )}
         </div>
-        <div className="mb-2">
-          <textarea
-            placeholder="Note Content"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="border p-2 w-full rounded"
-            rows="4"
-          />
-        </div>
-        <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded" disabled={creating}>
-          {creating ? 'Adding...' : 'Add Note'}
-        </button>
       </form>
 
-      {loading && <p>Loading notes...</p>}
-      {error && <p className="text-red-500">{error}</p>}
+      {loading && <p className="text-gray-500">loading…</p>}
 
-      {notes && notes.length > 0 ? (
-        notes.map((note) => (
-          <div key={note._id} className="border p-3 mb-2 rounded shadow">
-            <h2 className="font-semibold text-lg">{note.title}</h2>
-            <p>{note.content}</p>
+      {notes.map((n) => (
+        <div
+          key={n._id}
+          className="border rounded p-3 mb-3 hover:shadow transition"
+        >
+          <div className="flex justify-between items-start">
+            <div>
+              <h2 className="font-semibold">{n.title}</h2>
+              <p className="whitespace-pre-wrap">{n.content}</p>
+            </div>
+            <div className="space-x-3">
+              <button
+                onClick={() => {
+                  setEditId(n._id);
+                  setTitle(n.title);
+                  setContent(n.content);
+                }}
+                className="text-blue-600 hover:underline cursor-pointer"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => dispatch(deleteNote(n._id))}
+                className="text-red-600 hover:underline cursor-pointer"
+              >
+                Delete
+              </button>
+            </div>
           </div>
-        ))
-      ) : (
-        !loading && <p>No notes available. Add a new note above!</p>
-      )}
+        </div>
+      ))}
     </div>
   );
 }
